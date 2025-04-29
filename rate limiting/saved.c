@@ -9,13 +9,11 @@
 //huge overhead... insanely inefficient, but works.
 #define MAP_PATH "/sys/fs/bpf/current_packets"  
 #define MAX 2048
-typedef __u32 u32;
-typedef __u8  u8;
 
 int main(int argc, char** argv) {
-    u32 key, next_key;
-    u32 keys[MAX];
-    u8 value;
+    __u32 key, next_key;
+    __u32 keys[MAX];
+    __u8 value;
     int map_fd, i, res, key_count = 0;
 
     map_fd = bpf_obj_get(MAP_PATH);
@@ -46,7 +44,7 @@ while(1)
         else 
         {
             printf("key= %u before= %u\n", keys[i], value);
-            u8 new_val = 0;
+            __u8 new_val = 0;
             if (bpf_map_update_elem(map_fd, &keys[i], &new_val, BPF_ANY) != 0) 
                 printf("failed for update=%u\n",keys[i]);
             else printf("safely updated to 0\n");
