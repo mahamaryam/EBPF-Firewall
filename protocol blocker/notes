@@ -1,0 +1,15 @@
+add port blocker
+ip blocker
+protocol blocker
+reverse path filtering
+fixed window rate limiting
+
+to add:
+traffic shaping on the basis of ports and ips.
+
+maintain a map that will have either 0 or 1. if 0, enable fixed window rate limiting, if 1 then enable the algorithm of traffic shaping.
+first add num!=0 && num!=1 in the map. like say.. 2, to disable all limiting features.
+
+enable spinlocks in fixed window rate limiting
+
+modify traffic shaping to packets. like this much packets per ip
