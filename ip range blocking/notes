@@ -1,0 +1,6 @@
+sudo bpftool map update name id <map id> key 00 00 00 00 value hex <ip_mask->ip> <ip_mask->mask>
+sudo bpftool map update name id <map id> key 00 00 00 00 value hex 0A 01 A8 C0 00 00 FF FF
+key is the index. 
+ 0A 01 A8 C0 is the ip... like c0a8010a (192.168.1.10)
+00 00 FF FF is the mask (0xffff0000)
+192.168.1.10/16
