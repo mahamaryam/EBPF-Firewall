@@ -1,8 +1,6 @@
 # Mini Firewall 
 - Spin lock & unlock instructions are commented because of debugging purpose as we can't call funtions i.e, bpf_printk while holding a lock. 
 
-
-
 ## Dependencies
 
 - [xdp-loader](https://github.com/xdp-project/xdp-tools.git)
@@ -13,15 +11,14 @@
 
 Just run `make run` command.
 
-### Note
+## Note
 
-**@tchook {"ifindex":6, "attach_point":"BPF_TC_EGRESS"}**
+@tchook {"ifindex":6, "attach_point":"BPF_TC_EGRESS"}
 
-You can notice above line  in our `egress.c`. This line tells ecli to attach this TC program to our **interface number 6**  and monitor **EGRESS** traffic.
-
-
+- You can notice above line  in our `egress.c`. This line tells ecli to attach this TC program to our **interface number 6**  and monitor **EGRESS** traffic.
 To get interface number, you can use command `ip a`.
 
+- Change the `Makefile` and `egress.c` according to your network interface. In `Makefile`, I have used interface `test`.
 
 ## Work in Progress
 
