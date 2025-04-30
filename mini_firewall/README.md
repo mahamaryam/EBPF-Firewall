@@ -1,5 +1,5 @@
 # Mini Firewall 
-- Spin lock & unlock instructions are commented because of debugging purpose as we can't call funtions i.e, bpf_printk while holding a lock. 
+- Spin lock and unlock instructions are commented out for debugging purposes, as we cannot call functions (e.g., bpf_printk) while holding a lock.
 
 ## Dependencies
 
