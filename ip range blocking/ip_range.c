@@ -41,7 +41,9 @@ for (int i = 0; i < 50; i++) {
     struct ip_mask *ip_get;
     int index = i; 
     //separate variable 
-    /*Clang must know the loop bounds and index are constant. If you use &i directly in bpf_map_lookup_elem, it may prevent unrolling because &i is on the stack and changes each iteration.Instead, assign the loop index i to a fixed scalar variable (index) on each iteration. This is a known workaround for unrolling in BPF.And in each of those cases, the index can be evaluated as a known immediate value, allowing the verifier to track the pointer safety and avoid rejecting it.
+    /*Clang must know the loop bounds and index are constant. If you use &i directly in bpf_map_lookup_elem, it may prevent unrolling because &i is on the stack and changes each iteration.
+    Instead, assign the loop index i to a fixed scalar variable (index) on each iteration. This is a known workaround for unrolling in BPF.And in each of those cases, the index can be 
+    evaluated as a known immediate value, allowing the verifier to track the pointer safety and avoid rejecting it.
 */
     ip_get = bpf_map_lookup_elem(&ip_blocklist, &index); //add null case.
     if(!ip_get) return XDP_PASS;
