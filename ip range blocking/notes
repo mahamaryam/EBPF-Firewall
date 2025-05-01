@@ -4,3 +4,7 @@ key is the index.
  0A 01 A8 C0 is the ip... like c0a8010a (192.168.1.10)
 00 00 FF FF is the mask (0xffff0000)
 192.168.1.10/16
+
+
+iprange.c:
+sudo bpftool map update name ip_blocklist key hex 00 00 00 00 value hex ea 78 41 44 00 00 00 ff (68.65.120.234/8)
