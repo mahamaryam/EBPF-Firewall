@@ -15,7 +15,7 @@ struct {
 } protocol_blocker SEC(".maps");
 
 SEC("xdp")
-int xdp_port_block(struct xdp_md *ctx)
+int xdp_protocol_block(struct xdp_md *ctx)
 {
     void *data_end = (void *)(long)ctx->data_end;
     void *data = (void *)(long)ctx->data;
