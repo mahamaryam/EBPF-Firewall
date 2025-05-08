@@ -35,8 +35,10 @@ int xdp_drop_ips(struct xdp_md *ctx) {
     __u8 *ip_value = bpf_map_lookup_elem(&blocked_ips, &decimal_ip);
     
     if (ip_value) {
-        bpf_printk("dropping packet from blocked IP: %u", decimal_ip);
-        return XDP_DROP;
+        if(*ip_value==0)
+            return XDP_PASS;
+        else if(*ip_value==1)
+            return XDP_DROP;
     }
     return XDP_PASS;
 }
