@@ -1,5 +1,5 @@
-#INCOMPLETE!!
 #!/bin/bash
+#INCOMPLETE!!
 
 port_block() {
     local port=$1
