@@ -68,12 +68,13 @@ disable_rl() {
 disable_mafw()
 {
 sudo net detach xdp dev wlo1
-#sudo rm /sys/fs/bpf/? yes or no?
+#sudo rm /sys/fs/bpf/? yes or no? better is not to for persistence
 }
 enable_mafw()
 {
-#clang ?
-#then laod. 2>/dev/null
+clang -O2 -g -target bpf -c main.c -o main.o 2>/dev/null
+sudo bpftool prog load main.o /sys/fs/bpf/main 2>/dev/null
+sudo net attach xdp name main dev wlo1 2>/dev/null # can we use name?  
 #sudo net attach xdp id 4 dev wlo1 ----> define interface.
 }
 main() {
