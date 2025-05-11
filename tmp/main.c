@@ -341,13 +341,14 @@ SEC("xdp")
 int init(struct xdp_md *ctx)
 {
 
+bpf_printk("in the start");
     void *data_end = (void *)(long)ctx->data_end;
     void *data = (void *)(long)ctx->data;
 
     struct ethhdr *eth = data;
     if ((void *)(eth + 1) > data_end)
         return XDP_PASS;
-
+bpf_printk("i've reached HERE ethernet");
     __u16 h_proto = eth->h_proto;
     void *cursor = data + sizeof(*eth);
 
@@ -366,14 +367,12 @@ int init(struct xdp_md *ctx)
     struct iphdr *iph = cursor;
     if ((void *)(iph + 1) > data_end)
         return XDP_PASS;
-
-    if (iph->protocol != IPPROTO_TCP)
-        return XDP_PASS;
+        bpf_printk("i've reached HERE iphdr");
 
     struct tcphdr *tcp = (void *)(iph + 1);
     if ((void *)(tcp + 1) > data_end)
         return XDP_PASS;
-    
+    bpf_printk("i've reached HEREtcp");    
     int action = xdp_protocol_block(iph); //1
     if(action==XDP_DROP) return XDP_DROP;
     //pass case
@@ -384,7 +383,8 @@ int init(struct xdp_md *ctx)
     __u8 _lookup=1;
     __u8 *var;
     var = bpf_map_lookup_elem(&options, &_lookup);
-    if(var){
+    if(var)
+    {
        if(*var==1)
        {
        action = xdp_rate_limiting(iph); 
@@ -404,7 +404,7 @@ int init(struct xdp_md *ctx)
     _lookup = 3;
     var = bpf_map_lookup_elem(&options, &_lookup);
     if(var){
-    if(*var == 1)
+    if(*var == 1 && iph->protocol == IPPROTO_TCP)
     {action = ingress_state(iph, tcp); if(action==XDP_DROP) return XDP_DROP; } }//7
     //reserved, 1st index for rate limiting, 2nd index for reverse path filtering, and 3rd for stateful packet inspection. third index to be used in tc too.
     
