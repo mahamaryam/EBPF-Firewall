@@ -1,4 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
 chmod +x mafw
 sudo mv /usr/local/bin/
+
 #run using mafw alone.

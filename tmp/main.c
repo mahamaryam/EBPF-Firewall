@@ -387,7 +387,7 @@ int init(struct xdp_md *ctx)
         return XDP_DROP; // 4
 
     __u8 _lookup = 1;
-    __u8 *var, action;
+    __u8 *var;
     var = bpf_map_lookup_elem(&options, &_lookup);
     if (var)
     {
