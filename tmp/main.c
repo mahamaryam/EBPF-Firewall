@@ -9,8 +9,6 @@ static int __always_inline xdp_drop_ips(struct iphdr *ip)
 
     if (ip_value)
     {
-        if (*ip_value == 0)
-            return XDP_PASS;
         if (*ip_value == 1)
             return XDP_DROP;
     }
@@ -36,7 +34,7 @@ static int __always_inline ip_range_blocking(struct iphdr *ip)
             break;
         // return XDP_PASS;
         if ((decimal_ip & ip_get->mask) == (ip_get->ip & ip_get->mask))
-           return XDP_DROP;
+            return XDP_DROP;
     }
     // another option to xor the ip->saddr with the ip in my map and then and with the mask to see if all zeroes, then drop.
     return XDP_PASS;
@@ -54,26 +52,26 @@ static int __always_inline xdp_port_block(struct iphdr *iph, void *data_end)
     {
         struct tcphdr *tcph = (void *)iph + sizeof(*iph);
         if ((void *)tcph + sizeof(*tcph) > data_end)
-           return XDP_DROP;
-           
+            return XDP_DROP;
+
         dst_port = bpf_ntohs(tcph->dest);
     }
     else if (protocol == IPPROTO_UDP)
     {
         struct udphdr *udph = (void *)iph + sizeof(*iph);
         if ((void *)udph + sizeof(*udph) > data_end)
-           return XDP_DROP;
-           
+            return XDP_DROP;
+
         dst_port = bpf_ntohs(udph->dest);
     }
 
     // lookup
     __u8 *blocked = bpf_map_lookup_elem(&port_blocker, &dst_port);
     if (blocked)
-    {  
-      if(*blocked==1)
-         return XDP_DROP;
-    } 
+    {
+        if (*blocked == 1)
+            return XDP_DROP;
+    }
 
     return XDP_PASS;
 }
@@ -85,9 +83,9 @@ static int __always_inline xdp_protocol_block(struct iphdr *iph)
     __u8 *blocked = bpf_map_lookup_elem(&black_protocol, &protocol);
     if (blocked)
     {
-        if(*blocked==1)
-           return XDP_DROP;
-           //if 0 then let go. xdp_pass;
+        if (*blocked == 1)
+            return XDP_DROP;
+        // if 0 then let go. xdp_pass;
     }
     return XDP_PASS;
 }
@@ -100,17 +98,16 @@ static int __always_inline reverse_path_filtering(struct xdp_md *ctx, struct iph
     params.ipv4_dst = ip->daddr;
     params.ifindex = ctx->ingress_ifindex;
 
-    int result = bpf_fib_lookup(ctx, &params, sizeof(params), 0); //routetablelookup
+    int result = bpf_fib_lookup(ctx, &params, sizeof(params), 0); // routetablelookup
     if (result == BPF_FIB_LKUP_RET_SUCCESS)
     {
         if (params.ifindex != ctx->ingress_ifindex)
         {
-            bpf_printk("spoofed ip.\n");       
+            bpf_printk("spoofed ip.\n");
             return XDP_DROP;
         }
     }
     return XDP_PASS;
-
 }
 static int __always_inline ingress_state(struct iphdr *ip, struct tcphdr *tcp)
 {
@@ -121,7 +118,7 @@ static int __always_inline ingress_state(struct iphdr *ip, struct tcphdr *tcp)
     key.dst_ip = (ip->saddr < ip->daddr) ? ip->daddr : ip->saddr,
     key.src_port = (tcp->source > tcp->dest) ? tcp->source : tcp->dest,
     key.dst_port = (tcp->source < tcp->dest) ? tcp->source : tcp->dest,
-    key.protocol = ip->protocol; //had a , earlier rather than ;
+    key.protocol = ip->protocol; // had a , earlier rather than ;
 
     struct conn_value *conn = bpf_map_lookup_elem(&conn_table, &key);
     __u64 now = bpf_ktime_get_ns();
@@ -255,7 +252,7 @@ static int __always_inline ingress_state(struct iphdr *ip, struct tcphdr *tcp)
             bpf_printk("INGRESS [*] FIN received");
             conn->state = BPF_TCP_TIME_WAIT;
         }
-        else if(tcp->ack || tcp->psh)
+        else if (tcp->ack || tcp->psh)
         {
             bpf_printk("ACK (Data) received");
         }
@@ -295,63 +292,63 @@ static int __always_inline ingress_state(struct iphdr *ip, struct tcphdr *tcp)
 drop_unlock:
     // bpf_spin_unlock(&conn->lock);
     return XDP_DROP;
-    
-    
 }
 static int __always_inline xdp_rate_limiting(struct iphdr *iph)
 {
     __u32 ip_addr = bpf_ntohl(iph->saddr);
-    __u8 *blocked = bpf_map_lookup_elem(&fixed_window_per_ip, &ip_addr); //get fixed ip limit
-    __u8 *curr = bpf_map_lookup_elem(&current_packets, &ip_addr);//get current ip packets 
-    
-    if (blocked) { //ip exists in the map and hard limit for it has been set.
+    __u8 *blocked = bpf_map_lookup_elem(&fixed_window_per_ip, &ip_addr); // get fixed ip limit
+    __u8 *curr = bpf_map_lookup_elem(&current_packets, &ip_addr);        // get current ip packets
 
-        if (curr) 
-        { //ip also has a current number of packets sent.
-            
-            if (*blocked <= *curr) 
+    if (blocked)
+    { // ip exists in the map and hard limit for it has been set.
+
+        if (curr)
+        { // ip also has a current number of packets sent.
+
+            if (*blocked <= *curr)
             {
                 bpf_printk("dropping packets from IP: %u", ip_addr);
                 return XDP_DROP;
-            } 
-            else 
+            }
+            else
             {
                 bpf_printk("increment packet count for IP: %u ", ip_addr);
                 (*curr)++;
             }
-        } 
-        else {
-            //first pakcet for ip is here.
+        }
+        else
+        {
+            // first pakcet for ip is here.
             __u8 val = 1;
             bpf_map_update_elem(&current_packets, &ip_addr, &val, BPF_ANY);
             bpf_printk("first packet IP: %u", ip_addr);
         }
-    } 
-    else { //block == NULL, meaning the ip is new to use.
+    }
+    else
+    { // block == NULL, meaning the ip is new to use.
         bpf_printk("ip adding to map: %u", ip_addr);
-        __u8 val = 1;  //curr=1
-        __u8 lim = 100; //default limit.
+        __u8 val = 1;   // curr=1
+        __u8 lim = 100; // default limit.
         bpf_map_update_elem(&fixed_window_per_ip, &ip_addr, &lim, BPF_ANY);
         bpf_map_update_elem(&current_packets, &ip_addr, &val, BPF_ANY);
     }
-    
+
     return XDP_PASS;
 }
 SEC("xdp")
 int init(struct xdp_md *ctx)
 {
-
-bpf_printk("in the start");
+    bpf_printk("in the start");
     void *data_end = (void *)(long)ctx->data_end;
     void *data = (void *)(long)ctx->data;
 
     struct ethhdr *eth = data;
     if ((void *)(eth + 1) > data_end)
         return XDP_PASS;
-bpf_printk("i've reached HERE ethernet");
+        bpf_printk("i've reached HERE ethernet");
+
     __u16 h_proto = eth->h_proto;
     void *cursor = data + sizeof(*eth);
-
     if (h_proto == bpf_htons(ETH_P_8021Q) || h_proto == bpf_htons(ETH_P_8021AD))
     {
         if ((void *)(cursor + sizeof(struct vlan_hdr)) > data_end)
@@ -367,47 +364,66 @@ bpf_printk("i've reached HERE ethernet");
     struct iphdr *iph = cursor;
     if ((void *)(iph + 1) > data_end)
         return XDP_PASS;
-        bpf_printk("i've reached HERE iphdr");
+    bpf_printk("i've reached HERE iphdr");
 
     struct tcphdr *tcp = (void *)(iph + 1);
     if ((void *)(tcp + 1) > data_end)
         return XDP_PASS;
-    bpf_printk("i've reached HEREtcp");    
-    int action = xdp_protocol_block(iph); //1
-    if(action==XDP_DROP) return XDP_DROP;
-    //pass case
-    action = xdp_drop_ips(iph);     if(action==XDP_DROP) return XDP_DROP; //2
-    action = ip_range_blocking(iph);     if(action==XDP_DROP) return XDP_DROP;//3
-    action = xdp_port_block(iph, data_end);     if(action==XDP_DROP) return XDP_DROP;//4
-    
-    __u8 _lookup=1;
-    __u8 *var;
+
+    __u8 action = xdp_protocol_block(iph); // 1
+    if (action == XDP_DROP)
+        return XDP_DROP;
+
+    action = xdp_drop_ips(iph);
+    if (action == XDP_DROP)
+        return XDP_DROP; // 2
+
+    action = ip_range_blocking(iph);
+    if (action == XDP_DROP)
+        return XDP_DROP; // 3
+
+    action = xdp_port_block(iph, data_end);
+    if (action == XDP_DROP)
+        return XDP_DROP; // 4
+
+    __u8 _lookup = 1;
+    __u8 *var, action;
     var = bpf_map_lookup_elem(&options, &_lookup);
-    if(var)
+    if (var)
     {
-       if(*var==1)
-       {
-       action = xdp_rate_limiting(iph); 
-       if (action==XDP_DROP) 
-          return XDP_DROP; 
-       } 
-       
-       }
-    
+        if (*var == 1)
+        {
+            action = xdp_rate_limiting(iph);
+            if (action == XDP_DROP)
+                return XDP_DROP;
+        }
+    }
+
     _lookup = 2;
     var = bpf_map_lookup_elem(&options, &_lookup);
-    if(var){
-    if(*var == 1)
-    {action = reverse_path_filtering(ctx, iph); if(action==XDP_DROP) return XDP_DROP; }//6 
+    if (var)
+    {
+        if (*var == 1)
+        {
+            action = reverse_path_filtering(ctx, iph);
+            if (action == XDP_DROP)
+                return XDP_DROP;
+        } // 6
     }
-   
+
     _lookup = 3;
     var = bpf_map_lookup_elem(&options, &_lookup);
-    if(var){
-    if(*var == 1 && iph->protocol == IPPROTO_TCP)
-    {action = ingress_state(iph, tcp); if(action==XDP_DROP) return XDP_DROP; } }//7
-    //reserved, 1st index for rate limiting, 2nd index for reverse path filtering, and 3rd for stateful packet inspection. third index to be used in tc too.
-    
+    if (var)
+    {
+        if (*var == 1 && iph->protocol == IPPROTO_TCP)
+        {
+            action = ingress_state(iph, tcp);
+            if (action == XDP_DROP)
+                return XDP_DROP;
+        }
+    } // 7
+    // reserved, 1st index for rate limiting, 2nd index for reverse path filtering, and 3rd for stateful packet inspection. third index to be used in tc too.
+
     return XDP_PASS;
 }
 

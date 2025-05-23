@@ -1,3 +1,6 @@
+#ifndef __HEADER_H__
+#define __HEADER_H__
+
 #include <linux/bpf.h>
 #include <linux/if_ether.h>
 #include <linux/ip.h>
@@ -84,7 +87,7 @@ struct {
     __uint(pinning, LIBBPF_PIN_BY_NAME);
 } options SEC(".maps");
 
-
+#endif
 
 
 
