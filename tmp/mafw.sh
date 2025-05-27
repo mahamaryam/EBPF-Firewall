@@ -152,6 +152,59 @@ protocol_allow() {
     sudo bpftool map update name black_protocol key $proto_num value 0
 }
 
+firewall_status() {
+    # Pretty colors
+    BOLD=$(tput bold)
+    RESET=$(tput sgr0)
+    GREEN=$(tput setaf 2)
+    RED=$(tput setaf 1)
+    CYAN=$(tput setaf 6)
+    YELLOW=$(tput setaf 3)
+
+    # Required map names
+    REQUIRED_MAPS=(blocked_ips black_protocol port_blocker options)
+
+    # Get all current map names from "name <name>" lines
+    map_names=$(sudo bpftool map list 2>/dev/null | awk '/name [^ ]+/ {for(i=2;i<=NF;i++) if($i!="type") print $i}' | sort | uniq)
+
+    all_found=1
+    for req in "${REQUIRED_MAPS[@]}"; do
+        if ! grep -q "^$req\$" <<<"$map_names"; then
+            all_found=0
+            break
+        fi
+    done
+
+    if [[ $all_found -eq 1 ]]; then
+        echo -e "${BOLD}${GREEN}Firewall status: ENABLED${RESET}"
+    else
+        echo -e "${BOLD}${RED}Firewall status: DISABLED${RESET}"
+        echo -e "${YELLOW}Missing one or more essential BPF maps: firewall is NOT ACTIVE.${RESET}"
+        return
+    fi
+
+    # Array: [display name, key]
+    FEATURES=(
+        "Rate Limiting (RL):1"
+        "Reverse Path Filtering (RPF):2"
+        "Stateful Packet Inspection (SPI):3"
+    )
+
+    options_json=$(sudo bpftool map dump pinned /sys/fs/bpf/options 2>/dev/null)
+
+    for entry in "${FEATURES[@]}"; do
+        feature="${entry%%:*}"
+        key="${entry##*:}"
+        value=$(echo "$options_json" | jq -r --arg k "$key" '.[] | select(.key == ($k | tonumber)) | .value')
+        if [[ "$value" == "1" ]]; then
+            status="${GREEN}ENABLED${RESET}"
+        else
+            status="${RED}DISABLED${RESET}"
+        fi
+        printf "  %-35s %s\n" "$feature" "$status"
+    done
+}
+
 enable_rpf() {
     sudo bpftool map update name options key 2 value 1
 }
@@ -232,7 +285,7 @@ disable_mafw() {
     echo "    [*] Unloading TC ..."
     sudo tc filter del dev "$INTERFACE" egress >/dev/null 2>&1 || true
     sudo tc qdisc del dev "$INTERFACE" clsact >/dev/null 2>&1 || true
-    rm /tmp/mafw_range_counter 2>/dev/null
+    rm /tmp/mafw_range_counter 2>/dev/null || true
 
     # Remove pinned maps & programs (all errors ignored)
     for map in black_protocol blocked_ips conn_table current_packets fixed_window \
@@ -351,6 +404,7 @@ print_usage() {
     echo "  ${GREEN}enable_mafw${RESET} <iface>      Enable MAFW on given interface"
     echo "  ${GREEN}disable_mafw${RESET} <iface>     Disable MAFW on given interface"
     echo "  ${GREEN}-v|--version${RESET}             Show version information"
+    echo "  ${GREEN}status${RESET}                   Show status information"
     echo ""
     echo "${YELLOW}Note:${RESET} Run ${CYAN}enable_mafw <iface>${RESET} first!"
     echo ""
@@ -360,10 +414,10 @@ print_usage() {
 
 main() {
     
-     if (( EUID != 0 )); then
-        echo "${RED}${BOLD}[!] Please run as root (sudo).${RESET}"
-        exit 1
-    fi
+    # if (( EUID != 0 )); then
+    #     echo "${RED}${BOLD}[!] Please run as root (sudo).${RESET}"
+    #     exit 1
+    # fi
 
     check_deps
 
@@ -390,6 +444,7 @@ main() {
         enable_mafw)   enable_mafw "$@" ;;
         disable_mafw)  disable_mafw "$@" ;;
         set_rl)        set_rl "$@" ;;
+        status)        firewall_status;;
         *) echo "[!] Unknown command: $cmd"; print_usage; exit 1 ;;
     esac
 }
