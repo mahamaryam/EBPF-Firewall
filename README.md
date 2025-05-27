@@ -28,9 +28,7 @@ A modular, easy-to-use firewall control script for Linux using eBPF, with advanc
 ## Installation
 
 1. **Clone or download** this script and related C sources (eBPF programs) to your system.
-2. Run `setup.sh`
-3. Ensure BPF programs (`main.c`, `egress.c`, etc.) are present and compilable with `clang` in your working directory.
-
+2. Ensure BPF programs (`main.c`, `egress.c`, etc.) and `mafw` script are present in current directory
 ---
 
 ## Usage
